@@ -1,0 +1,25 @@
+{
+  "name": "@kisan/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "node --watch --experimental-strip-types src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@kisan/core": "*",
+    "@kisan/db": "*",
+    "@kisan/advisory": "*",
+    "@kisan/data": "*",
+    "@kisan/reco": "*",
+    "@kisan/diagnosis": "*",
+    "@kisan/lang": "*",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21"
+  }
+}

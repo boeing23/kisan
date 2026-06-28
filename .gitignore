@@ -1,0 +1,34 @@
+# Secrets — NEVER commit
+secrets/
+.env
+.env.local
+*.serviceaccount.json
+service-account*.json
+
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.next/
+out/
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# Firebase
+.firebase/
+firebase-debug.log
+.firebaserc.local
+# Dashboard runtime config holds the Maps key — keep out of git (commit config.example.js)
+apps/dashboard/public/config.js
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Test / coverage
+coverage/
+.turbo/

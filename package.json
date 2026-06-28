@@ -1,0 +1,24 @@
+{
+  "name": "kisan-alert",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Voice/SMS agricultural intelligence platform for Indic farmers",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build --noEmit",
+    "test": "tsc --build && node --test packages/*/dist/**/*.test.js",
+    "dev:gateway": "npm run dev --workspace=@kisan/gateway",
+    "clean": "tsc --build --clean"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

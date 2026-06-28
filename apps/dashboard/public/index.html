@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kisan Alert — Officer Console</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <h1>🌾 Kisan Alert — Officer Console</h1>
+    <p class="sub">Rythu Seva Kendra (TG) · Krishi Vigyan Kendra (MH)</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Escalated crop diagnoses <span id="esc-count" class="badge">0</span></h2>
+      <div id="escalations" class="cards">
+        <p class="empty">Loading…</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Registered farmers</h2>
+      <div id="map"></div>
+      <div id="farmer-list" class="cards"></div>
+    </section>
+  </main>
+
+  <!-- Config is injected at build/deploy from firebase-config.json. -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

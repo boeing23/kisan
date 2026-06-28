@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "public": "apps/dashboard/public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/config.example.js"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  },
+  "firestore": {
+    "database": "kisan-db",
+    "rules": "firestore.rules"
+  }
+}

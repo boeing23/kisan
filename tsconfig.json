@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/advisory" },
+    { "path": "./packages/db" },
+    { "path": "./packages/data" },
+    { "path": "./packages/diagnosis" },
+    { "path": "./packages/reco" },
+    { "path": "./packages/lang" },
+    { "path": "./apps/gateway" }
+  ]
+}

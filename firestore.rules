@@ -1,0 +1,28 @@
+rules_version = '2';
+// Kisan Alert Firestore rules.
+//
+// The gateway backend uses the Admin SDK (service account) which BYPASSES these
+// rules entirely — so all farmer/alert/diagnosis writes happen server-side.
+//
+// The browser officer console only READS. For the prototype, reads are open;
+// before any public deploy, gate reads behind Firebase Auth (officer accounts):
+//   allow read: if request.auth != null && request.auth.token.officer == true;
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /diagnoses/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /farmers/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /alerts/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
