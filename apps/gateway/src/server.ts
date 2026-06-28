@@ -30,6 +30,16 @@ import { startSession, advance, type Session } from "./conversation.js";
 const app = express();
 app.use(express.json({ limit: "12mb" }));
 
+// CORS for the browser simulator/dashboard. Permissive for the prototype;
+// restrict `Access-Control-Allow-Origin` to known hosts before any real deploy.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "content-type");
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 /** Wrap async route handlers so rejections reach the error middleware. */
 const wrap =
   (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler =>

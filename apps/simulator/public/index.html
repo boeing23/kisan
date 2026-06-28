@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kisan Alert — Farmer Phone Simulator</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <aside class="controls">
+      <h1>🌾 Kisan Alert</h1>
+      <p class="muted">Farmer phone simulator — drives the live gateway API.</p>
+
+      <label class="field">
+        Gateway URL
+        <input id="api" value="http://localhost:8080" />
+      </label>
+      <label class="field">
+        Farmer phone
+        <input id="phone" value="+919900000001" />
+      </label>
+
+      <div class="btnrow">
+        <button id="start">📞 Start / Call</button>
+        <button id="reset" class="ghost">Reset</button>
+      </div>
+
+      <hr />
+      <h2>Actions</h2>
+      <button id="reco" class="wide">🌱 Get crop recommendation</button>
+      <button id="dryspell" class="wide">☀️ Run dry-spell check</button>
+
+      <h2>Diagnose crop</h2>
+      <label class="field">
+        Describe problem (voice)
+        <input id="voice" placeholder="e.g. leaves have yellow spots" />
+      </label>
+      <label class="field">
+        Or upload a leaf photo
+        <input id="photo" type="file" accept="image/*" />
+      </label>
+      <button id="diagnose" class="wide">🔬 Diagnose</button>
+
+      <hr />
+      <a href="#" id="dash" class="muted">Open officer dashboard →</a>
+    </aside>
+
+    <main class="phone">
+      <div class="phone-head">SMS / IVR — <span id="who">+919900000001</span></div>
+      <div id="log" class="log"></div>
+      <div class="composer">
+        <input id="reply" placeholder="Type reply (e.g. 1 for Marathi)…" />
+        <button id="send">Send</button>
+      </div>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
