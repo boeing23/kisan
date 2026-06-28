@@ -7,8 +7,8 @@ import type { LanguageCode } from "@kisan/core";
 export interface SpeechToTextInput {
   /** Raw audio bytes. */
   audio: Buffer;
-  /** Encoding of the audio, e.g. "LINEAR16", "MP3", "OGG_OPUS". */
-  encoding: "LINEAR16" | "MP3" | "OGG_OPUS" | "MULAW";
+  /** Encoding of the audio. WEBM_OPUS is what the browser MediaRecorder emits. */
+  encoding: "LINEAR16" | "MP3" | "OGG_OPUS" | "MULAW" | "WEBM_OPUS";
   sampleRateHertz?: number;
   language: LanguageCode;
 }

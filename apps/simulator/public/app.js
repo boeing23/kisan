@@ -71,7 +71,51 @@ function screenLang() {
   </div>`);
   vp.querySelectorAll("[data-lang]").forEach((b) =>
     b.onclick = () => { state.language = b.dataset.lang; screenLang(); });
-  vp.querySelector("#lang-next").onclick = screenRegister;
+  vp.querySelector("#lang-next").onclick = screenAuth;
+}
+
+/* ================= SCREEN: auth choice ================= */
+function screenAuth() {
+  render(`<div class="screen pad center" style="gap:0">
+    <div style="margin:30px auto 0"><div class="app-icon" style="margin:0 auto">${mi("eco", "fill")}</div></div>
+    <div class="h1" style="margin-top:14px">Welcome</div>
+    <div class="sub" style="margin-top:4px">Get crop advice, alerts & expert help</div>
+    <div class="spacer"></div>
+    <button class="btn" id="go-register">${mi("person_add", "fill")} Create account</button>
+    <button class="btn ghost" id="go-login" style="margin-top:10px">${mi("login")} I already have an account</button>
+    <div class="note-sms" style="margin-top:18px">${mi("sms")}No smartphone? The same service works on SMS & voice call</div>
+  </div>`);
+  vp.querySelector("#go-register").onclick = screenRegister;
+  vp.querySelector("#go-login").onclick = screenLogin;
+}
+
+/* ================= SCREEN: login ================= */
+function screenLogin() {
+  render(`<div class="screen">
+    <div class="appbar" data-auth>${mi("arrow_back")}
+      <div><div class="title">Log in</div><div class="titles">Enter your mobile number</div></div></div>
+    <div class="pad" style="display:flex;flex-direction:column;gap:14px;flex:1">
+      <div><div class="label">Mobile number</div>
+        <input class="input" id="l-phone" inputmode="numeric" placeholder="+91 98XXXXXXXX" value="+9198"></div>
+      <div><div class="label">PIN / Password</div>
+        <input class="input" id="l-pass" type="password" placeholder="••••"></div>
+      <div class="row" style="gap:6px;color:var(--muted-2);font-size:11px">${mi("info", "", "font-size:15px")}
+        Demo: PIN not verified yet — real builds use OTP / Firebase Auth.</div>
+      <div class="spacer"></div>
+      <button class="btn" id="l-go">${mi("login")} Log in</button>
+    </div>
+  </div>`);
+  vp.querySelector("[data-auth]").onclick = screenAuth;
+  vp.querySelector("#l-go").onclick = async () => {
+    const digits = vp.querySelector("#l-phone").value.replace(/\D/g, "");
+    if (digits.length < 10) return toast("Enter a valid mobile number.");
+    const tl = toast(`<span class="spin"></span> Logging in…`, 0);
+    try {
+      state.farmer = await api(`/farmer/farmer-${digits}`);
+      state.language = state.farmer.language || state.language;
+      tl.remove(); go("home");
+    } catch { tl.remove(); toast("No account found. Please create one."); }
+  };
 }
 
 /* ================= SCREEN: register / farm setup ================= */
@@ -89,6 +133,8 @@ function screenRegister() {
           <button class="opt sel" data-state="MH" style="justify-content:center;font-size:15px">Maharashtra</button>
           <button class="opt" data-state="TG" style="justify-content:center;font-size:15px">Telangana</button>
         </div></div>
+      <div><div class="label">District</div>
+        <select class="input" id="r-district"></select></div>
       <div><div class="label">Current crop</div>
         <input class="input" id="r-crop" placeholder="e.g. cotton" value="cotton" /></div>
       <div class="spacer"></div>
@@ -96,23 +142,80 @@ function screenRegister() {
     </div>
   </div>`);
   let st = "MH";
+  const loadDistricts = async (state2) => {
+    const sel = vp.querySelector("#r-district");
+    sel.innerHTML = `<option>Loading…</option>`;
+    try {
+      const ds = await api(`/districts?state=${state2}`);
+      sel.innerHTML = ds.map((d) => `<option value="${esc(d.name)}">${esc(d.name)}</option>`).join("");
+    } catch { sel.innerHTML = `<option value="">—</option>`; }
+  };
+  loadDistricts(st);
   vp.querySelectorAll("[data-state]").forEach((b) => b.onclick = () => {
     st = b.dataset.state;
     vp.querySelectorAll("[data-state]").forEach((x) => x.classList.toggle("sel", x === b));
+    loadDistricts(st);
   });
-  vp.querySelector(".appbar .mi").onclick = screenLang;
+  vp.querySelector(".appbar .mi").onclick = screenAuth;
   vp.querySelector("#r-go").onclick = async () => {
     const phone = vp.querySelector("#r-phone").value.trim();
     const name = vp.querySelector("#r-name").value.trim();
     const crop = vp.querySelector("#r-crop").value.trim();
+    const district = vp.querySelector("#r-district").value;
     if (phone.replace(/\D/g, "").length < 10) return toast("Enter a valid mobile number.");
     const tl = toast(`<span class="spin"></span> Registering…`, 0);
     try {
       state.farmer = await api("/register", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, name, language: state.language, state: st, crop }),
+        body: JSON.stringify({ phone, name, language: state.language, state: st, crop, district }),
       });
       tl.remove(); go("home");
+    } catch (e) { tl.remove(); toast("⚠️ " + e.message); }
+  };
+}
+
+/* ================= SCREEN: profile / settings ================= */
+function screenProfile() {
+  const f = state.farmer, field = f.fields[0] || {};
+  render(`<div class="screen">
+    <div class="appbar" data-back>${mi("arrow_back")}
+      <div><div class="title">Profile & Settings</div><div class="titles">${esc(f.phone)}</div></div></div>
+    <div class="pad" style="display:flex;flex-direction:column;gap:14px;flex:1">
+      <div class="row" style="gap:12px">
+        <span class="chip" style="width:54px;height:54px;border-radius:50%;background:var(--tint-green)">${mi("person", "fill", "color:var(--green);font-size:30px")}</span>
+        <div><div class="h2">${esc(f.name || "Farmer")}</div><div class="sub">${esc(field.district)}, ${f.state === "MH" ? "Maharashtra" : "Telangana"}</div></div>
+      </div>
+      <div><div class="label">Name</div><input class="input" id="p-name" value="${esc(f.name || "")}"></div>
+      <div><div class="label">District</div><select class="input" id="p-district"></select></div>
+      <div><div class="label">Current crop</div><input class="input" id="p-crop" value="${esc(field.currentCrop || "")}"></div>
+      <div><div class="label">Language</div>
+        <select class="input" id="p-lang">
+          <option value="en-IN">English</option><option value="hi-IN">हिंदी</option><option value="te-IN">తెలుగు</option>
+        </select></div>
+      <button class="btn" id="p-save" style="margin-top:4px">${mi("save")} Save changes</button>
+      <button class="btn ghost" id="p-logout">${mi("logout")} Log out</button>
+    </div>
+  </div>`);
+  vp.querySelector("#p-lang").value = f.language;
+  const psel = vp.querySelector("#p-district");
+  api(`/districts?state=${f.state}`).then((ds) => {
+    psel.innerHTML = ds.map((d) => `<option ${d.name === field.district ? "selected" : ""}>${esc(d.name)}</option>`).join("");
+  }).catch(() => { psel.innerHTML = `<option>${esc(field.district || "")}</option>`; });
+  vp.querySelector("[data-back]").onclick = () => go("home");
+  vp.querySelector("#p-logout").onclick = () => { state.farmer = null; screenAuth(); };
+  vp.querySelector("#p-save").onclick = async () => {
+    const tl = toast(`<span class="spin"></span> Saving…`, 0);
+    try {
+      state.language = vp.querySelector("#p-lang").value;
+      state.farmer = await api("/register", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          phone: f.phone, name: vp.querySelector("#p-name").value.trim(),
+          language: state.language, state: f.state,
+          district: vp.querySelector("#p-district").value, crop: vp.querySelector("#p-crop").value.trim(),
+        }),
+      });
+      tl.remove(); toast("✓ Saved", 1500); setTimeout(() => go("home"), 700);
     } catch (e) { tl.remove(); toast("⚠️ " + e.message); }
   };
 }
@@ -128,6 +231,7 @@ async function screenHome() {
           <span style="font-size:11.5px;font-weight:600">${esc(field.district)}, ${f.state === "MH" ? "Maharashtra" : "Telangana"}</span></div>
           <div style="font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${tr.hi}, ${esc(f.name || "Farmer")}</div></div>
         <div class="spacer"></div><span class="pill">${f.language === "te-IN" ? "EN · తె" : f.language === "hi-IN" ? "EN · हिं" : "EN"}</span>
+        <span id="to-profile" style="cursor:pointer">${mi("account_circle", "", "font-size:28px;color:var(--muted)")}</span>
       </div>
 
       <div class="voice" id="voice">
@@ -150,7 +254,12 @@ async function screenHome() {
     </div>
     ${nav("home")}
   </div>`);
-  bindFeatures(); bindNav(); vp.querySelector("#voice").onclick = () => toast("🎙️ Voice input would record here, then call the same APIs.");
+  bindFeatures(); bindNav();
+  vp.querySelector("#to-profile").onclick = screenProfile;
+  vp.querySelector("#voice").onclick = () => recordVoice((text) => {
+    toast(`🎙️ “${esc(text)}” — opening Crop Health…`, 2200);
+    setTimeout(() => { go("health"); setTimeout(() => { const i = vp.querySelector("#voice"); if (i) i.value = text; }, 60); }, 700);
+  });
 
   // weather strip
   api(`/weather/${f.id}`).then((w) => {
@@ -271,7 +380,7 @@ function screenHealth() {
         <span style="font-family:monospace;font-size:10px;color:#9aa79d">[ leaf / stem / fruit ]</span>
         <input id="photo" type="file" accept="image/*" hidden></label>
       <div class="divider"><span></span><em>or describe it</em><span></span></div>
-      <div class="card row" style="gap:12px"><span class="chip" style="width:42px;height:42px;border-radius:50%;background:var(--tint-earth)">${mi("mic", "fill", "color:var(--earth)")}</span>
+      <div class="card row" style="gap:12px"><span class="chip" id="health-mic" style="width:42px;height:42px;border-radius:50%;background:var(--tint-earth);cursor:pointer">${mi("mic", "fill", "color:var(--earth)")}</span>
         <input class="input" id="voice" placeholder="e.g. yellow spots on leaves" style="border:none;height:auto;padding:0"></div>
       <div class="spacer"></div>
       <button class="btn" id="diag-go" style="margin-top:12px">${mi("biotech", "fill")} Diagnose</button>
@@ -283,6 +392,40 @@ function screenHealth() {
     if (file) vp.querySelector("#drop").innerHTML = `<img src="${URL.createObjectURL(file)}">`;
   };
   vp.querySelector("#diag-go").onclick = () => runDiagnose(file, vp.querySelector("#voice").value.trim());
+  vp.querySelector("#health-mic").onclick = () => recordVoice((text) => { vp.querySelector("#voice").value = text; });
+}
+
+/**
+ * Record a short voice clip from the mic and transcribe via the gateway /stt
+ * (Google Speech-to-Text) in the farmer's language. Calls cb(transcript).
+ */
+let mediaRec = null;
+async function recordVoice(cb) {
+  if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) return toast("Microphone not available in this browser.");
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { return toast("🎙️ Microphone permission denied."); }
+  const chunks = [];
+  mediaRec = new MediaRecorder(stream, { mimeType: "audio/webm" });
+  mediaRec.ondataavailable = (e) => chunks.push(e.data);
+  const rec = toast(`🎙️ Listening… tap mic again to stop`, 0);
+  mediaRec.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    rec.remove();
+    const blob = new Blob(chunks, { type: "audio/webm" });
+    const b64 = await fileB64(blob);
+    const tl = toast(`<span class="spin"></span> Transcribing…`, 0);
+    try {
+      const r = await api("/stt", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ audioBase64: b64, encoding: "WEBM_OPUS", language: state.language }) });
+      tl.remove();
+      if (r.transcript) cb(r.transcript); else toast("Didn't catch that — please try again.");
+    } catch (e) { tl.remove(); toast("⚠️ " + e.message); }
+  };
+  mediaRec.start();
+  // safety auto-stop after 8s
+  setTimeout(() => { if (mediaRec && mediaRec.state === "recording") mediaRec.stop(); }, 8000);
 }
 
 async function runDiagnose(file, voice) {
@@ -345,7 +488,7 @@ function nav(active) {
 function bindNav() {
   vp.querySelectorAll(".nav .tab").forEach((tabEl) => tabEl.onclick = () => {
     const tab = tabEl.dataset.tab;
-    if (tab === "more") return toast("More services plug in here — built to grow.");
+    if (tab === "more") return screenProfile();
     go(tab);
   });
 }

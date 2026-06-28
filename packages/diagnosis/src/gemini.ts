@@ -76,19 +76,41 @@ export class GeminiDiagnoser {
     }
     parts.push({ text: this.buildPrompt(input) });
 
-    const response = await this.ai.models.generateContent({
-      model: MODEL,
-      contents: [{ role: "user", parts }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
-        temperature: 0.2,
-      },
-    });
-
+    const response = await this.generateWithRetry(parts);
     const text = response.text;
     if (!text) throw new Error("Gemini returned no content");
     return JSON.parse(text) as DiagnosisOutput;
+  }
+
+  /**
+   * Gemini occasionally returns 503/UNAVAILABLE under load. Retry a few times
+   * with exponential backoff before surfacing a friendly error.
+   */
+  private async generateWithRetry(parts: Array<Record<string, unknown>>, attempts = 3): Promise<{ text?: string }> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await this.ai.models.generateContent({
+          model: MODEL,
+          contents: [{ role: "user", parts }],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: RESPONSE_SCHEMA,
+            temperature: 0.2,
+          },
+        });
+      } catch (err) {
+        lastErr = err;
+        const msg = String((err as Error)?.message ?? err);
+        const transient = /503|UNAVAILABLE|overloaded|high demand|429|RESOURCE_EXHAUSTED/i.test(msg);
+        if (!transient || i === attempts - 1) break;
+        await new Promise((r) => setTimeout(r, 800 * 2 ** i)); // 0.8s, 1.6s
+      }
+    }
+    throw new Error(
+      "The AI service is busy right now. Please try again in a moment. " +
+        `(${String((lastErr as Error)?.message ?? lastErr).slice(0, 120)})`
+    );
   }
 
   private buildPrompt(input: DiagnoseInput): string {

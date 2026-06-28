@@ -115,13 +115,21 @@ export class EarthEngineClient {
     return v == null ? undefined : v;
   }
 
-  /** Convenience: fetch both signals for a field in parallel. */
-  async sampleField(location: GeoPoint, polygon?: GeoPoint[]): Promise<FieldSignals> {
-    const [ndvi, soilMoisture] = await Promise.all([
-      this.sampleNdvi(location, { polygon }),
-      this.sampleSoilMoisture(location, { polygon }),
-    ]);
-    return { ndvi, soilMoisture };
+  /**
+   * Convenience: fetch both signals for a field in parallel, with an overall
+   * timeout so a slow/stuck EE call degrades to undefined signals (engine uses
+   * neutral priors) instead of hanging the request.
+   */
+  async sampleField(location: GeoPoint, polygon?: GeoPoint[], timeoutMs = 8000): Promise<FieldSignals> {
+    const work = Promise.all([
+      this.sampleNdvi(location, { polygon }).catch(() => undefined),
+      this.sampleSoilMoisture(location, { polygon }).catch(() => undefined),
+    ]).then(([ndvi, soilMoisture]) => ({ ndvi, soilMoisture }));
+
+    const timeout = new Promise<FieldSignals>((resolve) =>
+      setTimeout(() => resolve({}), timeoutMs)
+    );
+    return Promise.race([work, timeout]);
   }
 
   private regionFor(location: GeoPoint, polygon?: GeoPoint[]) {

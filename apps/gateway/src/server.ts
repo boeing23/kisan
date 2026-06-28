@@ -33,7 +33,7 @@ import {
   saveAlert,
   listFarmers,
 } from "@kisan/db";
-import { OpenMeteoProvider, SoilGridsClient } from "@kisan/data";
+import { OpenMeteoProvider, SoilGridsClient, DISTRICTS, districtCenter } from "@kisan/data";
 import { recommendCrops, EarthEngineClient, currentSeason } from "@kisan/reco";
 import { GeminiDiagnoser } from "@kisan/diagnosis";
 import { GoogleLang } from "@kisan/lang";
@@ -80,29 +80,57 @@ app.get("/health", (_req, res) => res.json({ ok: true, project: config.projectId
  * (The SMS/IVR path uses /webhook/sms; this is the smartphone-app equivalent.)
  */
 app.post("/register", wrap(async (req: Request, res: Response) => {
-  const { phone, name, language, state, crop } = req.body ?? {};
+  const { phone, name, language, state, crop, district } = req.body ?? {};
   if (!phone || !state) return res.status(400).json({ error: "phone and state required" });
   const digits = String(phone).replace(/\D/g, "");
-  const loc = state === "MH" ? { lat: 18.99, lng: 75.76 } : { lat: 16.9, lng: 79.6 };
+  const { district: districtName, center } = districtCenter(state, district);
+  const field = {
+    id: `field-${digits}-1`,
+    location: center,
+    district: districtName,
+    state: state as Farmer["state"],
+    currentCrop: crop ? String(crop) : undefined,
+    sowingDate: new Date().toISOString(),
+  };
   const farmer = {
     id: `farmer-${digits}`,
     phone: String(phone),
     name: name ? String(name) : undefined,
     language: (language ?? "en-IN") as Farmer["language"],
     state: state as Farmer["state"],
-    fields: [
-      {
-        id: `field-${digits}-1`,
-        location: loc,
-        district: state === "MH" ? "Beed" : "Nalgonda",
-        state: state as Farmer["state"],
-        currentCrop: crop ? String(crop) : undefined,
-        sowingDate: new Date().toISOString(),
-      },
-    ],
+    fields: [field],
     createdAt: new Date().toISOString(),
   };
   await upsertFarmer(farmer);
+  // Warm the signal cache in the background so the first Crop/Advisory screen
+  // is fast (Earth Engine is slow on a cold call).
+  buildFieldSignals(field, signalSources).catch(() => {});
+  return res.json(farmer);
+}));
+
+/** Pilot districts for the register dropdown. Query: ?state=MH|TG */
+app.get("/districts", (req: Request, res: Response) => {
+  const st = String(req.query.state ?? "");
+  res.json((DISTRICTS as Record<string, unknown>)[st] ?? []);
+});
+
+/** Speech-to-text. Body: { audioBase64, encoding?, language? }. */
+app.post("/stt", wrap(async (req: Request, res: Response) => {
+  const { audioBase64, encoding, language } = req.body ?? {};
+  if (!audioBase64) return res.status(400).json({ error: "audioBase64 required" });
+  const transcript = await lang.speechToText({
+    audio: Buffer.from(String(audioBase64), "base64"),
+    encoding: (encoding ?? "WEBM_OPUS") as "WEBM_OPUS",
+    sampleRateHertz: encoding === "WEBM_OPUS" || !encoding ? 48000 : undefined,
+    language: (language ?? "en-IN") as Farmer["language"],
+  });
+  return res.json({ transcript });
+}));
+
+/** Fetch a farmer by id (login / profile). */
+app.get("/farmer/:id", wrap(async (req: Request, res: Response) => {
+  const farmer = await getFarmer(req.params.id ?? "");
+  if (!farmer) return res.status(404).json({ error: "not found" });
   return res.json(farmer);
 }));
 
