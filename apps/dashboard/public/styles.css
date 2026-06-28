@@ -56,4 +56,14 @@ main {
 .card .meta { font-size: 0.8rem; color: #666; margin-top: 0.2rem; }
 .card .advice { font-size: 0.9rem; margin-top: 0.4rem; }
 .empty { color: #999; font-style: italic; }
+.case-photo { max-width: 140px; border-radius: 6px; margin: 0.4rem 0; display: block; }
+.response { font-size: 0.88rem; margin-top: 0.4rem; padding: 0.4rem 0.6rem; background: #e8f5e9; border-radius: 6px; }
+.actions { margin-top: 0.5rem; display: flex; gap: 0.4rem; }
+.actions button { font-size: 0.8rem; padding: 0.35rem 0.7rem; border: none; border-radius: 5px; background: var(--green); color: #fff; cursor: pointer; }
+.actions button.ghost { background: #eee; color: #333; }
+.status { font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 999px; vertical-align: middle; }
+.status.open { background: #ffe0b2; color: #7a4a00; }
+.status.claimed { background: #bbdefb; color: #0d47a1; }
+.status.responded { background: #c8e6c9; color: #1b5e20; }
+.status.resolved { background: #e0e0e0; color: #555; }
 #map { height: 320px; border-radius: 6px; margin-bottom: 0.8rem; background: #e8ece8; }

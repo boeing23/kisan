@@ -20,12 +20,24 @@ import {
   getFarmer,
   saveDiagnosis,
   saveSensorReading,
+  recentDiagnoses,
+  getDiagnosis,
+  listOfficerCases,
+  claimDiagnosis,
+  respondDiagnosis,
+  resolveDiagnosis,
+  uploadPhoto,
+  getSession,
+  saveSession,
+  saveAlert,
+  listFarmers,
 } from "@kisan/db";
 import { OpenMeteoProvider, SoilGridsClient } from "@kisan/data";
-import { recommendCrops, EarthEngineClient } from "@kisan/reco";
+import { recommendCrops, EarthEngineClient, currentSeason } from "@kisan/reco";
 import { GeminiDiagnoser } from "@kisan/diagnosis";
+import { GoogleLang } from "@kisan/lang";
 import { runAdvisoryJob } from "./scheduler.js";
-import { MockMessageProvider } from "./dispatch.js";
+import { MockMessageProvider, dispatchAlert } from "./dispatch.js";
 import { startSession, advance, type Session } from "./conversation.js";
 import { buildFieldSignals, type SignalSources } from "./signals.js";
 import { buildAdvisory } from "./advisory.js";
@@ -51,7 +63,7 @@ const wrap =
 
 const weather = new OpenMeteoProvider();
 const messenger = new MockMessageProvider();
-const sessions = new Map<string, Session>();
+const lang = new GoogleLang();
 
 // Shared signal sources (EE auth is expensive — reuse one client).
 const signalSources: SignalSources = {
@@ -67,18 +79,18 @@ app.post("/webhook/sms", wrap(async (req: Request, res: Response) => {
   const { from, text } = req.body ?? {};
   if (!from) return res.status(400).json({ error: "missing 'from'" });
 
-  let session = sessions.get(from);
-  // No session + no text, or an explicit "hi"/"start" -> begin (or resume).
+  const session = await getSession<Session>(from);
+  // No session -> begin (or resume an already-registered farmer at the menu).
   if (!session) {
     const existing = await findFarmerByPhone(from);
     const turn = startSession(from);
     if (existing) turn.session.step = "registered_menu";
-    sessions.set(from, turn.session);
+    await saveSession(from, turn.session);
     return res.json({ reply: turn.reply });
   }
 
   const turn = advance(session, String(text ?? ""));
-  sessions.set(from, turn.session);
+  await saveSession(from, turn.session);
   if (turn.completedFarmer) await upsertFarmer(turn.completedFarmer);
   return res.json({ reply: turn.reply });
 }));
@@ -135,6 +147,9 @@ app.post("/diagnose", wrap(async (req: Request, res: Response) => {
   if (!farmer) return res.status(404).json({ error: "farmer not found" });
   const field = farmer.fields[0];
 
+  // Build context from the farmer's field + recent diagnoses so the model
+  // reasons in-situ, not just from the photo/sentence.
+  const prior = await recentDiagnoses(farmer.id, 5);
   const diagnoser = new GeminiDiagnoser(
     config.geminiApiKey ?? (() => { throw new Error("GEMINI key missing"); })()
   );
@@ -144,13 +159,32 @@ app.post("/diagnose", wrap(async (req: Request, res: Response) => {
     voiceTranscript,
     crop: field?.currentCrop,
     language: farmer.language,
+    context: {
+      crop: field?.currentCrop,
+      district: field?.district,
+      state: farmer.state,
+      season: currentSeason(),
+      soilType: field?.soilType,
+      priorLabels: prior.map((d) => d.label),
+    },
   });
 
+  const id = randomUUID();
+  // Persist the photo so an officer can review it later.
+  let photoRef: string | undefined;
+  let photoUrl: string | undefined;
+  if (imageBase64) {
+    const stored = await uploadPhoto(id, imageBase64, imageMimeType ?? "image/jpeg");
+    photoRef = stored.ref;
+    photoUrl = stored.url;
+  }
+
   const diagnosis = {
-    id: randomUUID(),
+    id,
     farmerId: farmer.id,
     fieldId: field?.id ?? "unknown",
-    photoRef: undefined,
+    photoRef,
+    photoUrl,
     voiceTranscript,
     label: out.label,
     confidence: out.confidence,
@@ -158,10 +192,89 @@ app.post("/diagnose", wrap(async (req: Request, res: Response) => {
     advice: out.advice,
     escalated: out.recommendEscalation,
     officerTarget: farmer.state === "TG" ? "RSK" : "KVK",
+    status: "open" as const,
     createdAt: new Date().toISOString(),
   };
   await saveDiagnosis(diagnosis);
   return res.json(diagnosis);
+}));
+
+// --- Officer follow-up loop (Rythu Seva Kendra / KVK) ---
+
+/** List open escalated cases for an officer target. Query: ?target=RSK|KVK */
+app.get("/officer/cases", wrap(async (req: Request, res: Response) => {
+  const target = String(req.query.target ?? "");
+  if (!target) return res.status(400).json({ error: "target query required (RSK|KVK)" });
+  return res.json(await listOfficerCases(target));
+}));
+
+/** Officer claims a case. Body: { officer }. */
+app.post("/officer/cases/:id/claim", wrap(async (req: Request, res: Response) => {
+  const officer = String(req.body?.officer ?? "officer");
+  await claimDiagnosis(req.params.id ?? "", officer);
+  return res.json({ ok: true });
+}));
+
+/**
+ * Officer sends expert advice. Body: { officer, response }.
+ * The response is translated to the farmer's language and dispatched as a
+ * follow-up alert — closing the loop back to the farmer.
+ */
+app.post("/officer/cases/:id/respond", wrap(async (req: Request, res: Response) => {
+  const { officer, response } = req.body ?? {};
+  if (!response) return res.status(400).json({ error: "response required" });
+  const diag = await getDiagnosis(req.params.id ?? "");
+  if (!diag) return res.status(404).json({ error: "case not found" });
+
+  await respondDiagnosis(diag.id, String(officer ?? "officer"), String(response));
+
+  const farmer = await getFarmer(diag.farmerId);
+  if (farmer) {
+    // Translate officer advice into the farmer's language, then dispatch.
+    const localized =
+      farmer.language === "en-IN"
+        ? String(response)
+        : await lang.translate(String(response), farmer.language, "en-IN");
+    const alert = {
+      id: randomUUID(),
+      farmerId: farmer.id,
+      fieldId: diag.fieldId,
+      kind: "diagnosis_followup" as const,
+      severity: "advisory" as const,
+      message: localized,
+      language: farmer.language,
+      channel: "sms" as const,
+      createdAt: new Date().toISOString(),
+      dispatchedAt: null,
+    };
+    await saveAlert(alert);
+    await dispatchAlert(alert, farmer.phone, messenger);
+  }
+  return res.json({ ok: true });
+}));
+
+/** Officer closes a case. */
+app.post("/officer/cases/:id/resolve", wrap(async (req: Request, res: Response) => {
+  await resolveDiagnosis(req.params.id ?? "");
+  return res.json({ ok: true });
+}));
+
+/** Registered farmers (for the dashboard map). Trimmed to display fields. */
+app.get("/farmers", wrap(async (_req: Request, res: Response) => {
+  const farmers = await listFarmers();
+  return res.json(
+    farmers.map((f) => ({
+      id: f.id,
+      name: f.name ?? f.phone,
+      state: f.state,
+      language: f.language,
+      fields: f.fields.map((fl) => ({
+        location: fl.location,
+        district: fl.district,
+        currentCrop: fl.currentCrop,
+      })),
+    }))
+  );
 }));
 
 /** Error middleware — log + return the message so failures are debuggable. */

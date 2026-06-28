@@ -52,6 +52,10 @@ apps/
   soil moisture (SMAP) + SoilGrids pH/soil-type + CGWB groundwater + Open-Meteo
   seasonal-rainfall archive, assembled per field, cached per day in Firestore.
   Beed → NDVI 0.14, SM 0.19, pH 7.3, GW 9 m, 1076 mm → drought-hardy crops top.
+- ✅ **Diagnosis → officer follow-up loop** — photo stored in Cloud Storage,
+  Gemini diagnosis with farmer/crop/field/season + prior-diagnosis context,
+  escalation to RSK/KVK, officer claim → expert advice → auto-translated SMS
+  back to the farmer → resolve. Officer console drives it via the gateway.
 - ✅ Gemini diagnosis (voice → bollworm, Marathi advice, KVK escalation)
 - ✅ Google Translate + Text-to-Speech (Marathi neural voice)
 - ✅ Firestore read/write/delete on `kisan-db`

@@ -117,8 +117,10 @@ export interface Diagnosis {
   id: string;
   farmerId: string;
   fieldId: string;
-  /** Storage path of submitted photo, if any. */
+  /** GCS path of submitted photo, if any. */
   photoRef?: string;
+  /** Signed URL for the dashboard to render the photo. */
+  photoUrl?: string;
   /** Transcribed voice complaint, if any. */
   voiceTranscript?: string;
   /** Model-identified issue. */
@@ -132,4 +134,34 @@ export interface Diagnosis {
   /** RSK (Telangana) / KVK (Maharashtra) target id. */
   officerTarget?: string;
   createdAt: string;
+
+  // --- Officer follow-up workflow ---
+  /**
+   * open       — AI diagnosis done, not yet picked up
+   * claimed    — an officer is handling it
+   * responded  — officer sent expert advice back to the farmer
+   * resolved   — case closed
+   * Non-escalated diagnoses stay "open" and are simply informational.
+   */
+  status: "open" | "claimed" | "responded" | "resolved";
+  /** Officer who claimed the case. */
+  assignedOfficer?: string;
+  /** Expert advice the officer wrote (in any language; translated to farmer's). */
+  officerResponse?: string;
+  respondedAt?: string;
+  resolvedAt?: string;
+}
+
+/**
+ * Context passed to the diagnosis model so it reasons with the farmer's actual
+ * crop, field, and history — not just the photo/sentence in isolation.
+ */
+export interface DiagnosisContext {
+  crop?: string;
+  district?: string;
+  state?: StateCode;
+  season?: "kharif" | "rabi" | "zaid";
+  soilType?: string;
+  /** Labels of recent diagnoses for this farmer (recurrence signal). */
+  priorLabels?: string[];
 }

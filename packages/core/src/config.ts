@@ -42,6 +42,8 @@ export interface Config {
   dataGovInApiKey?: string;
   /** Firestore database id. The console created a named db, not "(default)". */
   firestoreDatabaseId: string;
+  /** GCS bucket for farmer crop photos. */
+  photoBucket: string;
   /** True once Earth Engine access is approved for the project. */
   earthEngineEnabled: boolean;
 }
@@ -55,6 +57,7 @@ export const config: Config = {
   geminiApiKey: get("GEMINI_API_KEY", "gemini"),
   dataGovInApiKey: get("DATAGOVIN_API_KEY", "datagovin"),
   firestoreDatabaseId: process.env.FIRESTORE_DATABASE_ID ?? "kisan-db",
+  photoBucket: process.env.PHOTO_BUCKET ?? "kisan-alert-500812-photos",
   earthEngineEnabled: process.env.EARTH_ENGINE_ENABLED === "true",
 };
 

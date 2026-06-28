@@ -14,3 +14,7 @@ export const firebaseConfig = {
 
 export const FIRESTORE_DB_ID = "kisan-db";
 export const MAPS_API_KEY = "YOUR_MAPS_API_KEY";
+/** Gateway base URL for officer actions (claim/respond/resolve). */
+export const GATEWAY_URL = "http://localhost:8080";
+/** Which kendra this console serves: "RSK" (Telangana) or "KVK" (Maharashtra). */
+export const OFFICER_TARGET = "KVK";

@@ -7,7 +7,7 @@
  * than free text.
  */
 import { GoogleGenAI, Type } from "@google/genai";
-import type { LanguageCode } from "@kisan/core";
+import type { LanguageCode, DiagnosisContext } from "@kisan/core";
 
 const MODEL = "gemini-2.5-flash";
 
@@ -30,6 +30,8 @@ export interface DiagnoseInput {
   voiceTranscript?: string;
   crop?: string;
   language: LanguageCode;
+  /** Farmer/field/history context so the model reasons in situ. */
+  context?: DiagnosisContext;
 }
 
 const RESPONSE_SCHEMA = {
@@ -91,9 +93,19 @@ export class GeminiDiagnoser {
 
   private buildPrompt(input: DiagnoseInput): string {
     const lang = LANG_NAME[input.language];
+    const ctx = input.context;
+    const crop = input.crop ?? ctx?.crop;
     const lines = [
       "You are an agricultural extension expert helping a small Indian farmer.",
-      input.crop ? `The crop is ${input.crop}.` : "",
+      crop ? `The crop is ${crop}.` : "",
+      ctx?.district || ctx?.state
+        ? `Location: ${[ctx.district, ctx.state].filter(Boolean).join(", ")}, India.`
+        : "",
+      ctx?.season ? `Current season is ${ctx.season}.` : "",
+      ctx?.soilType ? `Soil type is ${ctx.soilType}.` : "",
+      ctx?.priorLabels?.length
+        ? `This farmer's recent issues were: ${ctx.priorLabels.join(", ")} — consider whether the problem is recurring or worsening.`
+        : "",
       input.voiceTranscript
         ? `The farmer describes the problem: "${input.voiceTranscript}".`
         : "",
@@ -101,6 +113,7 @@ export class GeminiDiagnoser {
         ? "Examine the attached photo of the crop for disease, pest, or nutrient deficiency."
         : "",
       `Write the 'advice' field in ${lang} using simple words a low-literacy farmer understands.`,
+      "Prefer locally-available, low-cost remedies suited to the region and season.",
       "Set recommendEscalation=true only if the issue is serious, ambiguous, or needs an on-site expert visit.",
       "If the plant looks healthy, label it 'healthy' with severity 'info'.",
     ];

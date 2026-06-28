@@ -40,4 +40,5 @@ export const Collections = {
   signalCache: "signalCache",
   sensorReadings: "sensorReadings",
   alertDays: "alertDays",
+  sessions: "sessions",
 } as const;
