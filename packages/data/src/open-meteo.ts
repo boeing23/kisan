@@ -61,6 +61,29 @@ export class OpenMeteoProvider implements WeatherProvider {
     return mapResponse(location, json);
   }
 
+  /** Current conditions for the home weather strip: temp, wind, today's rain chance. */
+  async getCurrentWeather(location: GeoPoint): Promise<{ tempC: number; windKmh: number; rainProb: number }> {
+    const params = new URLSearchParams({
+      latitude: String(location.lat),
+      longitude: String(location.lng),
+      current: "temperature_2m,wind_speed_10m",
+      daily: "precipitation_probability_max",
+      forecast_days: "1",
+      timezone: "Asia/Kolkata",
+    });
+    const res = await this.fetchFn(`${BASE}?${params}`);
+    if (!res.ok) throw new Error(`Open-Meteo current error ${res.status}`);
+    const j = (await res.json()) as {
+      current: { temperature_2m: number; wind_speed_10m: number };
+      daily: { precipitation_probability_max: (number | null)[] };
+    };
+    return {
+      tempC: Math.round(j.current.temperature_2m),
+      windKmh: Math.round(j.current.wind_speed_10m),
+      rainProb: j.daily.precipitation_probability_max[0] ?? 0,
+    };
+  }
+
   /**
    * Total rainfall (mm) over the most recently completed instance of a season,
    * from the historical archive. This is the climatic water budget a crop will

@@ -14,6 +14,7 @@
 import express, { type Request, type Response, type NextFunction, type RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 import { config } from "@kisan/core";
+import type { Farmer } from "@kisan/core";
 import {
   upsertFarmer,
   findFarmerByPhone,
@@ -73,6 +74,45 @@ const signalSources: SignalSources = {
 };
 
 app.get("/health", (_req, res) => res.json({ ok: true, project: config.projectId }));
+
+/**
+ * Direct registration for the app UI. Body: { phone, name, language, state, crop }.
+ * (The SMS/IVR path uses /webhook/sms; this is the smartphone-app equivalent.)
+ */
+app.post("/register", wrap(async (req: Request, res: Response) => {
+  const { phone, name, language, state, crop } = req.body ?? {};
+  if (!phone || !state) return res.status(400).json({ error: "phone and state required" });
+  const digits = String(phone).replace(/\D/g, "");
+  const loc = state === "MH" ? { lat: 18.99, lng: 75.76 } : { lat: 16.9, lng: 79.6 };
+  const farmer = {
+    id: `farmer-${digits}`,
+    phone: String(phone),
+    name: name ? String(name) : undefined,
+    language: (language ?? "en-IN") as Farmer["language"],
+    state: state as Farmer["state"],
+    fields: [
+      {
+        id: `field-${digits}-1`,
+        location: loc,
+        district: state === "MH" ? "Beed" : "Nalgonda",
+        state: state as Farmer["state"],
+        currentCrop: crop ? String(crop) : undefined,
+        sowingDate: new Date().toISOString(),
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  };
+  await upsertFarmer(farmer);
+  return res.json(farmer);
+}));
+
+/** Today's weather for a farmer's field (home strip). */
+app.get("/weather/:farmerId", wrap(async (req: Request, res: Response) => {
+  const farmer = await getFarmer(req.params.farmerId ?? "");
+  if (!farmer || farmer.fields.length === 0)
+    return res.status(404).json({ error: "farmer or field not found" });
+  return res.json(await weather.getCurrentWeather(farmer.fields[0]!.location));
+}));
 
 /** Inbound SMS/IVR. Body: { from: E.164, text: string }. */
 app.post("/webhook/sms", wrap(async (req: Request, res: Response) => {

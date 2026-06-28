@@ -3,66 +3,29 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kisan Alert — Farmer Phone Simulator</title>
+  <title>Kisan Alert — Farmer App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="wrap">
-    <aside class="controls">
-      <h1>🌾 Kisan Alert</h1>
-      <p class="muted">Farmer phone simulator — drives the live gateway API.</p>
-
-      <label class="field">
-        Gateway URL
-        <input id="api" value="http://localhost:8080" />
-      </label>
-      <label class="field">
-        Farmer phone
-        <input id="phone" value="+919900000001" />
-      </label>
-
-      <div class="btnrow">
-        <button id="start">📞 Start / Call</button>
-        <button id="reset" class="ghost">Reset</button>
+  <div class="stage">
+    <!-- Phone frame; screens are rendered into .viewport by app.js -->
+    <div class="phone">
+      <div class="statusbar" id="statusbar">
+        <span>9:41</span>
+        <span class="sb-icons">
+          <span class="mi">network_cell</span>
+          <span class="mi">wifi</span>
+          <span class="mi">battery_full</span>
+        </span>
       </div>
-
-      <hr />
-      <h2>Actions</h2>
-      <button id="reco" class="wide">🌱 Get crop recommendation</button>
-      <button id="advisory" class="wide">💧 Get advisory (irrigation + fertiliser)</button>
-      <button id="dryspell" class="wide">☀️ Run daily advisory job</button>
-
-      <h2>Ground sensor</h2>
-      <label class="field">
-        Soil moisture (0–1)
-        <input id="sm" type="number" min="0" max="1" step="0.01" value="0.12" />
-      </label>
-      <button id="sensor" class="wide">📡 Push sensor reading</button>
-
-      <h2>Diagnose crop</h2>
-      <label class="field">
-        Describe problem (voice)
-        <input id="voice" placeholder="e.g. leaves have yellow spots" />
-      </label>
-      <label class="field">
-        Or upload a leaf photo
-        <input id="photo" type="file" accept="image/*" />
-      </label>
-      <button id="diagnose" class="wide">🔬 Diagnose</button>
-
-      <hr />
-      <a href="#" id="dash" class="muted">Open officer dashboard →</a>
-    </aside>
-
-    <main class="phone">
-      <div class="phone-head">SMS / IVR — <span id="who">+919900000001</span></div>
-      <div id="log" class="log"></div>
-      <div class="composer">
-        <input id="reply" placeholder="Type reply (e.g. 1 for Marathi)…" />
-        <button id="send">Send</button>
-      </div>
-    </main>
+      <div class="viewport" id="viewport"></div>
+    </div>
+    <p class="hint">Farmer-facing app · drives the live Kisan Alert gateway</p>
   </div>
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
