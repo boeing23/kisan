@@ -20,12 +20,13 @@ import {
   getFarmer,
   saveDiagnosis,
 } from "@kisan/db";
-import { OpenMeteoProvider } from "@kisan/data";
-import { recommendCrops, currentSeason } from "@kisan/reco";
+import { OpenMeteoProvider, SoilGridsClient } from "@kisan/data";
+import { recommendCrops, EarthEngineClient } from "@kisan/reco";
 import { GeminiDiagnoser } from "@kisan/diagnosis";
 import { runDrySpellJob } from "./scheduler.js";
 import { MockMessageProvider } from "./dispatch.js";
 import { startSession, advance, type Session } from "./conversation.js";
+import { buildFieldSignals, type SignalSources } from "./signals.js";
 
 const app = express();
 app.use(express.json({ limit: "12mb" }));
@@ -49,6 +50,13 @@ const wrap =
 const weather = new OpenMeteoProvider();
 const messenger = new MockMessageProvider();
 const sessions = new Map<string, Session>();
+
+// Shared signal sources (EE auth is expensive — reuse one client).
+const signalSources: SignalSources = {
+  weather,
+  soil: new SoilGridsClient(),
+  earth: new EarthEngineClient(config.serviceAccountPath),
+};
 
 app.get("/health", (_req, res) => res.json({ ok: true, project: config.projectId }));
 
@@ -86,13 +94,9 @@ app.get("/reco/:farmerId", wrap(async (req: Request, res: Response) => {
   if (!farmer || farmer.fields.length === 0)
     return res.status(404).json({ error: "farmer or field not found" });
   const field = farmer.fields[0]!;
-  const forecast = await weather.getForecast(field.location, 14);
-  const seasonalRainfallMm = forecast.days.reduce((s, d) => s + d.rainfallMm, 0) * 10;
-  const rec = recommendCrops(
-    field.id,
-    { season: currentSeason(), seasonalRainfallMm },
-    farmer.language
-  );
+  const force = req.query.force === "true";
+  const signals = await buildFieldSignals(field, signalSources, force);
+  const rec = recommendCrops(field.id, signals, farmer.language);
   return res.json(rec);
 }));
 

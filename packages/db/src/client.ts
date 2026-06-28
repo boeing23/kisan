@@ -37,4 +37,5 @@ export const Collections = {
   alerts: "alerts",
   diagnoses: "diagnoses",
   recommendations: "recommendations",
+  signalCache: "signalCache",
 } as const;

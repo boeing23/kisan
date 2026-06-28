@@ -48,12 +48,15 @@ apps/
 ## Status — verified live
 
 - ✅ Dry-spell engine (8 unit tests) + real Open-Meteo forecast → Marathi/Telugu message
-- ✅ Crop reco ranks drought-hardy crops correctly for dry Marathwada kharif
+- ✅ **Smart crop reco with real signals** — Earth Engine NDVI (Sentinel-2) +
+  soil moisture (SMAP) + SoilGrids pH/soil-type + CGWB groundwater + Open-Meteo
+  seasonal-rainfall archive, assembled per field, cached per day in Firestore.
+  Beed → NDVI 0.14, SM 0.19, pH 7.3, GW 9 m, 1076 mm → drought-hardy crops top.
 - ✅ Gemini diagnosis (voice → bollworm, Marathi advice, KVK escalation)
 - ✅ Google Translate + Text-to-Speech (Marathi neural voice)
 - ✅ Firestore read/write/delete on `kisan-db`
 - ✅ Gateway end-to-end: SMS registration flow → reco → dry-spell job → diagnose
-- ⏳ Earth Engine NDVI sampler — built, needs a live session test
+- ✅ Farmer phone simulator (`apps/simulator/`) drives the live gateway
 - ⏳ Speech-to-Text — wired, not yet exercised with real audio
 
 ## Run locally

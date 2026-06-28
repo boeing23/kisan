@@ -6,7 +6,9 @@
  * point/polygon and receive numbers. No raster download, no Python.
  *
  * NDVI source: Sentinel-2 SR (COPERNICUS/S2_SR_HARMONIZED), cloud-masked,
- * median over a recent window. Soil moisture: NASA SMAP (NASA/SMAP/SPL4SMGP).
+ * median over a recent window. Soil moisture: NASA SMAP L3 enhanced
+ * (NASA/SMAP/SPL3SMP_E/006, band soil_moisture_am) — the L4 global product
+ * (SPL4SMGP) currently lags with no recent images.
  */
 import { readFileSync } from "node:fs";
 import ee from "@google/earthengine";
@@ -80,27 +82,37 @@ export class EarthEngineClient {
     return result?.ndvi;
   }
 
-  /** Mean volumetric soil moisture (0..1) from SMAP over the last window. */
+  /**
+   * Mean volumetric soil moisture (m³/m³, ~0..0.5) from SMAP L3 enhanced over
+   * the last window. SMAP pixels are ~9km, so we sample at 9km scale; the small
+   * field region intersects the overlying pixel.
+   */
   async sampleSoilMoisture(location: GeoPoint, opts?: { polygon?: GeoPoint[]; windowDays?: number }): Promise<number | undefined> {
     await this.init();
-    const region = this.regionFor(location, opts?.polygon);
+    // SMAP pixels are ~9km. A field-sized region falls inside a single pixel and
+    // reduceRegion returns null, so sample over a 10km disc around the field.
+    const region = opts?.polygon && opts.polygon.length >= 3
+      ? ee.Geometry.Polygon([opts.polygon.map((p) => [p.lng, p.lat])])
+      : ee.Geometry.Point([location.lng, location.lat]).buffer(10000);
     const end = ee.Date(Date.now());
-    const start = end.advance(-(opts?.windowDays ?? 7), "day");
+    const start = end.advance(-(opts?.windowDays ?? 10), "day");
 
     const sm = ee
-      .ImageCollection("NASA/SMAP/SPL4SMGP/007")
+      .ImageCollection("NASA/SMAP/SPL3SMP_E/006")
       .filterDate(start, end)
-      .select("sm_surface")
+      .select("soil_moisture_am")
       .mean();
 
     const dict = sm.reduceRegion({
       reducer: ee.Reducer.mean(),
       geometry: region,
-      scale: 10000,
+      scale: 9000,
       maxPixels: 1e8,
+      bestEffort: true,
     });
     const result = await this.getInfo<Record<string, number>>(dict);
-    return result?.sm_surface;
+    const v = result?.soil_moisture_am;
+    return v == null ? undefined : v;
   }
 
   /** Convenience: fetch both signals for a field in parallel. */
