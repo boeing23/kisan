@@ -29,7 +29,15 @@
       <hr />
       <h2>Actions</h2>
       <button id="reco" class="wide">🌱 Get crop recommendation</button>
-      <button id="dryspell" class="wide">☀️ Run dry-spell check</button>
+      <button id="advisory" class="wide">💧 Get advisory (irrigation + fertiliser)</button>
+      <button id="dryspell" class="wide">☀️ Run daily advisory job</button>
+
+      <h2>Ground sensor</h2>
+      <label class="field">
+        Soil moisture (0–1)
+        <input id="sm" type="number" min="0" max="1" step="0.01" value="0.12" />
+      </label>
+      <button id="sensor" class="wide">📡 Push sensor reading</button>
 
       <h2>Diagnose crop</h2>
       <label class="field">

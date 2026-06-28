@@ -22,15 +22,15 @@ gcloud run deploy "$SERVICE" \
 URL=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)')
 echo "==> Gateway URL: $URL"
 
-echo "==> Creating daily dry-spell Cloud Scheduler job (06:00 IST)"
-gcloud scheduler jobs create http kisan-dry-spell \
+echo "==> Creating daily advisory Cloud Scheduler job (06:00 IST)"
+gcloud scheduler jobs create http kisan-advisory \
   --project "$PROJECT" \
   --location "$REGION" \
   --schedule "0 6 * * *" \
   --time-zone "Asia/Kolkata" \
-  --uri "${URL}/jobs/dry-spell" \
+  --uri "${URL}/jobs/advisory" \
   --http-method POST \
   --oidc-service-account-email "$SA" \
-  || echo "(scheduler job may already exist — update with 'gcloud scheduler jobs update http kisan-dry-spell ...')"
+  || echo "(scheduler job may already exist — update with 'gcloud scheduler jobs update http kisan-advisory ...')"
 
 echo "==> Done. Deploy dashboard with: firebase deploy --only hosting,firestore:rules"

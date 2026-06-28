@@ -19,14 +19,16 @@ import {
   findFarmerByPhone,
   getFarmer,
   saveDiagnosis,
+  saveSensorReading,
 } from "@kisan/db";
 import { OpenMeteoProvider, SoilGridsClient } from "@kisan/data";
 import { recommendCrops, EarthEngineClient } from "@kisan/reco";
 import { GeminiDiagnoser } from "@kisan/diagnosis";
-import { runDrySpellJob } from "./scheduler.js";
+import { runAdvisoryJob } from "./scheduler.js";
 import { MockMessageProvider } from "./dispatch.js";
 import { startSession, advance, type Session } from "./conversation.js";
 import { buildFieldSignals, type SignalSources } from "./signals.js";
+import { buildAdvisory } from "./advisory.js";
 
 const app = express();
 app.use(express.json({ limit: "12mb" }));
@@ -81,10 +83,10 @@ app.post("/webhook/sms", wrap(async (req: Request, res: Response) => {
   return res.json({ reply: turn.reply });
 }));
 
-/** Cloud Scheduler hits this daily. */
-app.post("/jobs/dry-spell", wrap(async (_req: Request, res: Response) => {
-  const result = await runDrySpellJob(weather, messenger);
-  console.log("[dry-spell job]", JSON.stringify(result));
+/** Cloud Scheduler hits this daily — emits irrigation/fertilization/dry-spell alerts. */
+app.post("/jobs/advisory", wrap(async (_req: Request, res: Response) => {
+  const result = await runAdvisoryJob(signalSources, messenger);
+  console.log("[advisory job]", JSON.stringify(result));
   return res.json(result);
 }));
 
@@ -98,6 +100,32 @@ app.get("/reco/:farmerId", wrap(async (req: Request, res: Response) => {
   const signals = await buildFieldSignals(field, signalSources, force);
   const rec = recommendCrops(field.id, signals, farmer.language);
   return res.json(rec);
+}));
+
+/** Full advisory (irrigation + fertilization + dry-spell) for a farmer's field. */
+app.get("/advisory/:farmerId", wrap(async (req: Request, res: Response) => {
+  const farmer = await getFarmer(req.params.farmerId ?? "");
+  if (!farmer || farmer.fields.length === 0)
+    return res.status(404).json({ error: "farmer or field not found" });
+  const advisory = await buildAdvisory(farmer.fields[0]!, farmer.language, signalSources);
+  return res.json(advisory);
+}));
+
+/** Ingest a ground sensor reading. Body: { fieldId, deviceId, soilMoisture, soilTempC? }. */
+app.post("/sensors/ingest", wrap(async (req: Request, res: Response) => {
+  const { fieldId, deviceId, soilMoisture, soilTempC } = req.body ?? {};
+  if (!fieldId || typeof soilMoisture !== "number")
+    return res.status(400).json({ error: "fieldId and numeric soilMoisture required" });
+  const reading = {
+    id: randomUUID(),
+    fieldId,
+    deviceId: deviceId ?? "sim-device",
+    soilMoisture,
+    soilTempC,
+    timestamp: new Date().toISOString(),
+  };
+  await saveSensorReading(reading);
+  return res.json({ ok: true, reading });
 }));
 
 /** Diagnosis. Body: { farmerId, imageBase64?, imageMimeType?, voiceTranscript? }. */

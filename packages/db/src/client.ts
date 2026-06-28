@@ -38,4 +38,6 @@ export const Collections = {
   diagnoses: "diagnoses",
   recommendations: "recommendations",
   signalCache: "signalCache",
+  sensorReadings: "sensorReadings",
+  alertDays: "alertDays",
 } as const;

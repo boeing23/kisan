@@ -20,25 +20,36 @@ export async function markDispatched(
 }
 
 /**
- * True if an alert of this kind was already created for the field today.
- * Keeps the daily scheduler idempotent.
+ * Idempotency marker per (field, kind, day). Using a deterministic doc id means
+ * the daily scheduler can check "already sent today?" with a single doc read —
+ * no composite index, no range query.
  */
+const dayMarkerId = (fieldId: string, kind: Alert["kind"], isoDate: string) =>
+  `${fieldId}_${kind}_${isoDate}`;
+
+/** True if an alert of this kind was already sent for the field today. */
 export async function alertExistsToday(
   fieldId: string,
   kind: Alert["kind"],
   isoDate: string // YYYY-MM-DD
 ): Promise<boolean> {
-  const start = `${isoDate}T00:00:00.000Z`;
-  const end = `${isoDate}T23:59:59.999Z`;
-  const snap = await firestore()
-    .collection(Collections.alerts)
-    .where("fieldId", "==", fieldId)
-    .where("kind", "==", kind)
-    .where("createdAt", ">=", start)
-    .where("createdAt", "<=", end)
-    .limit(1)
+  const doc = await firestore()
+    .collection(Collections.alertDays)
+    .doc(dayMarkerId(fieldId, kind, isoDate))
     .get();
-  return !snap.empty;
+  return doc.exists;
+}
+
+/** Record that an alert of this kind was sent for the field today. */
+export async function markAlertSent(
+  fieldId: string,
+  kind: Alert["kind"],
+  isoDate: string
+): Promise<void> {
+  await firestore()
+    .collection(Collections.alertDays)
+    .doc(dayMarkerId(fieldId, kind, isoDate))
+    .set({ fieldId, kind, isoDate, at: new Date().toISOString() });
 }
 
 /** Recent alerts for a farmer — for the officer dashboard + IVR history. */

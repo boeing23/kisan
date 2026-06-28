@@ -118,6 +118,8 @@ function finalizeFarmer(session: Session, crop: string): Farmer {
         district: state === "MH" ? "Beed" : "Nalgonda",
         state,
         currentCrop: crop,
+        // Assume registration coincides with sowing — drives crop-stage fertiliser advice.
+        sowingDate: new Date().toISOString(),
       },
     ],
     createdAt: new Date().toISOString(),

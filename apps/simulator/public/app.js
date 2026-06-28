@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const api = () => $("api").value.replace(/\/$/, "");
 const phone = () => $("phone").value.trim();
 const farmerId = () => "farmer-" + phone().replace(/\D/g, "");
+const fieldId = () => "field-" + phone().replace(/\D/g, "") + "-1";
 
 function bubble(text, cls = "in") {
   const el = document.createElement("div");
@@ -67,10 +68,38 @@ async function reco() {
 }
 
 async function dryspell() {
-  sys("Running dry-spell check for all farmers…");
+  sys("Running daily advisory job for all farmers…");
   try {
-    const r = await post("/jobs/dry-spell", {});
-    sys(`Checked ${r.fieldsChecked} field(s) · ${r.alertsCreated} alert(s) created · ${r.alertsSkipped} skipped. (Alerts dispatch as mock SMS — see gateway console.)`);
+    const r = await post("/jobs/advisory", {});
+    const kinds = Object.entries(r.byKind || {}).map(([k, v]) => `${v} ${k}`).join(", ") || "none";
+    sys(`Checked ${r.fieldsChecked} field(s) · ${r.alertsCreated} alert(s) [${kinds}] · ${r.alertsSkipped} skipped. (Mock SMS in gateway console.)`);
+  } catch (e) { sys("⚠️ " + e.message); }
+}
+
+async function advisory() {
+  sys("Building advisory (irrigation + fertiliser + dry-spell)…");
+  try {
+    const a = await get(`/advisory/${farmerId()}`);
+    const card = document.createElement("div");
+    card.className = "bubble card";
+    const rows = [];
+    rows.push(`<div class="t">💧 Advisory (moisture: ${a.moistureSource})</div>`);
+    if (a.messages.irrigation) rows.push(`<div>🚰 ${a.messages.irrigation}</div>`);
+    if (a.messages.fertilization) rows.push(`<div>🧪 ${a.messages.fertilization}</div>`);
+    if (a.messages.drySpell) rows.push(`<div>☀️ ${a.messages.drySpell}</div>`);
+    if (rows.length === 1) rows.push(`<div class="m">No action needed right now.</div>`);
+    card.innerHTML = rows.join("<hr style='margin:.3rem 0'>");
+    $("log").appendChild(card);
+    $("log").scrollTop = $("log").scrollHeight;
+  } catch (e) { sys("⚠️ " + e.message + " (register the farmer first)"); }
+}
+
+async function pushSensor() {
+  const soilMoisture = parseFloat($("sm").value);
+  if (Number.isNaN(soilMoisture)) return sys("Enter a soil moisture 0–1.");
+  try {
+    await post("/sensors/ingest", { fieldId: fieldId(), deviceId: "sim-sensor", soilMoisture });
+    sys(`📡 Sensor reading saved: soil moisture ${soilMoisture}. Now tap Get advisory — it uses the sensor over satellite.`);
   } catch (e) { sys("⚠️ " + e.message); }
 }
 
@@ -119,7 +148,9 @@ $("start").onclick = start;
 $("send").onclick = send;
 $("reply").addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
 $("reco").onclick = reco;
+$("advisory").onclick = advisory;
 $("dryspell").onclick = dryspell;
+$("sensor").onclick = pushSensor;
 $("diagnose").onclick = diagnose;
 $("reset").onclick = reset;
 $("dash").onclick = (e) => { e.preventDefault(); sys("Run the dashboard separately: npx serve apps/dashboard/public"); };

@@ -27,8 +27,25 @@ export interface Field {
   state: StateCode;
   /** Crop currently sown, if any. */
   currentCrop?: string;
-  /** Soil type if known from Soil Health Card. */
+  /** Soil type if known from Soil Health Card / SoilGrids. */
   soilType?: string;
+  /** ISO date the current crop was sown — drives crop stage + fertilization. */
+  sowingDate?: string;
+}
+
+/**
+ * A reading from a ground soil-moisture/IoT sensor in a field. Sensor data,
+ * when fresh, is preferred over satellite soil moisture for irrigation advice.
+ */
+export interface SensorReading {
+  id: string;
+  fieldId: string;
+  deviceId: string;
+  /** Volumetric soil moisture, 0..1. */
+  soilMoisture: number;
+  soilTempC?: number;
+  /** ISO8601 timestamp of the reading. */
+  timestamp: string;
 }
 
 /** A registered farmer (the primary user). */
