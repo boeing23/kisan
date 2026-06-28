@@ -11,20 +11,9 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="stage">
-    <!-- Phone frame; screens are rendered into .viewport by app.js -->
-    <div class="phone">
-      <div class="statusbar" id="statusbar">
-        <span>9:41</span>
-        <span class="sb-icons">
-          <span class="mi">network_cell</span>
-          <span class="mi">wifi</span>
-          <span class="mi">battery_full</span>
-        </span>
-      </div>
-      <div class="viewport" id="viewport"></div>
-    </div>
-    <p class="hint">Farmer-facing app · drives the live Kisan Alert gateway</p>
+  <!-- Web app shell; screens render into .viewport -->
+  <div class="app">
+    <div class="viewport" id="viewport"></div>
   </div>
   <script type="module" src="./app.js"></script>
 </body>

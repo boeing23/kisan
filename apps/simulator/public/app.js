@@ -6,7 +6,6 @@
  */
 const API = new URLSearchParams(location.search).get("api") || "http://localhost:8080";
 const vp = document.getElementById("viewport");
-const statusbar = document.getElementById("statusbar");
 
 /* ---------- bilingual strings (English primary + Indic subtitle) ---------- */
 const T = {
@@ -34,8 +33,7 @@ async function api(path, opts) {
   if (!res.ok) throw new Error((await res.text()) || res.status);
   return res.json();
 }
-function render(html, redStatus = false) {
-  statusbar.classList.toggle("on-red", redStatus);
+function render(html) {
   vp.innerHTML = html;
 }
 function toast(msg, ms = 3200) {
