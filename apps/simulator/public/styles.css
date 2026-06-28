@@ -29,7 +29,6 @@ body {
   color: var(--ink);
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex; align-items: center; justify-content: center;
 }
 .mi {
   font-family: "Material Symbols Outlined";
@@ -39,25 +38,21 @@ body {
 }
 .mi.fill { font-variation-settings: "FILL" 1; }
 
-/* Web app shell — adapts to any device:
-   - phones: full-bleed, fills the screen
-   - tablets/desktop: centered app-card with its own scroll + a page backdrop */
+/* Web app shell — full-bleed on every device. Content inside is width-capped
+   and centered so it stays readable while the bars (header/nav) span the screen. */
 .app {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   background: var(--paper);
   display: flex; flex-direction: column;
   overflow: hidden; position: relative;
 }
-@media (min-width: 600px) {
-  body { background: radial-gradient(circle at 50% -10%, #e9ede7, #dde2d8 55%, #d2d8cb); padding: 20px; }
-  .app {
-    width: min(100%, 440px);
-    height: min(100% - 40px, 880px);
-    border-radius: 28px;
-    border: 1px solid var(--line);
-    box-shadow: 0 16px 48px rgba(0,0,0,.18);
-  }
+/* Wider viewports: center each screen's content column; nav bar spans full width. */
+@media (min-width: 700px) {
+  .screen { align-items: center; }
+  .screen > * { width: 100%; max-width: 920px; margin-left: auto; margin-right: auto; }
+  .screen > .nav { max-width: none; justify-content: center; gap: 40px; }
+  .screen > .nav .tab { flex: 0 0 auto; min-width: 80px; }
 }
 
 .viewport { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
@@ -139,8 +134,8 @@ body {
 .banner .t { font-size: 13px; font-weight: 700; color: #8f2e21; }
 .banner .s { font-size: 11px; color: #a8584c; }
 
-/* Feature grid */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+/* Feature grid — 2 cols on phones, more as the viewport grows */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 11px; }
 .feature {
   background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 13px; cursor: pointer;
 }
